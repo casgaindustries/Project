@@ -30,15 +30,26 @@ class Server:
         while True:
             try:
                 data = c.recv(6000)
-                datadict = json.loads(data)
-                
+                datadict = None
+                try:
+                    datadict = json.loads(data)
+                except:
+                    print(data)
+                    datadict = {}
+                # print(datadict)
                 #! Check and establish new connection if you receive 'person' json
                 #! Then add it to connections list
                 if 'person' in datadict:
                     persondata = datadict['person']
                     newconnection = ConnectionObj(persondata['id'],persondata['name'],persondata['key'],c)
                     self.connections.append(newconnection)
+                    #TODO send response with own public key
                     print(self.connections)
+
+                #! Different Cases:
+                if 'message' in datadict:
+                    #TODO decrypt using public key given by user
+                    pass
                 
                 if not data:
                     print(str(a[0])+ ':' + str(a[1]), "disconnected")
