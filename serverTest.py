@@ -3,6 +3,7 @@ import socket
 import threading
 import sys
 import json
+from connection_obj import *
 
 class Server:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -25,25 +26,40 @@ class Server:
                 break
     
     def myHandler(self,c,a):
+        newconnection = None
         while True:
-            data = c.recv(6000)
-            
-            for connection in self.connections:
-                connection.send(bytes(data))
-            if not data:
+            try:
+                data = c.recv(6000)
+                datadict = json.loads(data)
+                
+                #! Check and establish new connection if you receive 'person' json
+                #! Then add it to connections list
+                if 'person' in datadict:
+                    persondata = datadict['person']
+                    newconnection = ConnectionObj(persondata['id'],persondata['name'],persondata['key'],c)
+                    self.connections.append(newconnection)
+                    print(self.connections)
+                
+                if not data:
+                    print(str(a[0])+ ':' + str(a[1]), "disconnected")
+                    self.connections.remove(newconnection)
+                    newconnection.c.close()
+                    break
+            except:
                 print(str(a[0])+ ':' + str(a[1]), "disconnected")
-                self.connections.remove(c)
-                c.close()
+                self.connections.remove(newconnection)
+                newconnection.c.close()
                 break
+            
     
     def run(self):
         while True:
             #connection is c, cliens' adres is a
             c, a = self.sock.accept()
-            cThread = threading.Thread(target = self.handler, args = (c,a))
+            cThread = threading.Thread(target = self.myHandler, args = (c,a))
             cThread.daemon = True
             cThread.start()
-            self.connections.append(c)
+            #! self.connections.append(c), we want to add this later!
             # print(self.connections)
             print(str(a[0])+ ':' + str(a[1]), "connected")
 
