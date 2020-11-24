@@ -2,6 +2,8 @@ class ConnectionObj:
     id = None
     name = None
     key = None
+    
+    #The actual connection object which python understands:
     c= None
 
     def __init__(self,id,name,key,c):
