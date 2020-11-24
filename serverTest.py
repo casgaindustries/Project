@@ -13,7 +13,21 @@ class Server:
 
     def handler(self,c,a):
         while True:
-            data = c.recv(2024)
+            data = c.recv(6000)
+            for connection in self.connections:
+                print( 'newdadta')
+                print(data)
+                connection.send(bytes(data))
+            if not data:
+                print(str(a[0])+ ':' + str(a[1]), "disconnected")
+                self.connections.remove(c)
+                c.close()
+                break
+    
+    def myHandler(self,c,a):
+        while True:
+            data = c.recv(6000)
+            
             for connection in self.connections:
                 connection.send(bytes(data))
             if not data:
@@ -53,20 +67,22 @@ class Client:
         myPersonDict = self.data['person']
         myPersonDict['keys'] = myPersonDict['keys'].pop('private', None)
         myPersonDict['key'] = myPersonDict.pop('keys')
-        # myPersonDict['person'] = myPersonDict
-        
-        myPersonJson = json.dumps(myPersonDict)
+        finalPersonDict = {}
+        finalPersonDict['person'] = myPersonDict        
+        myPersonJson = json.dumps(finalPersonDict).encode('utf-8')
+        # myPersonJson = json.dumps(myPersonDict)
 
-        print(myPersonJson)
+        # print(myPersonJson)
             
-        self.sock.send(bytes(myPersonJson, 'utf-8'))
+        # self.sock.send(bytes(myPersonJson, 'utf-8'))
+        self.sock.sendall(myPersonJson)
 
         iThread = threading.Thread(target = self.sendMsg)
         iThread.deamon = True
         iThread.start()
 
         while True:
-            data = self.sock.recv(2048)
+            data = self.sock.recv(6000)
             if not data:
                 break
             print(data)
