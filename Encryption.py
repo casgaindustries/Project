@@ -25,11 +25,13 @@ def decrypt_message(cipher_text, privkey):
 
 # NOTE Demo: Key length 1024 results in 117 bytes of space. More needed for more robust messaging,
 # but key generation will take longer.
-publicKey, privateKey = generate_keys(1024)
+public_key, private_key = generate_keys(1024)
+print('Public key: ', public_key)
+print('Privatekey: ', private_key)
 message = 'This is a sentence showing the limit of what we can do with a key of length 1024. A max of 117 bytes looks like this.'
 
-cipher = encrypt_message(message, publicKey)
+cipher = encrypt_message(message, public_key)
 print('Cipher: ', cipher)
 
-decodedMessage = decrypt_message(cipher, privateKey)
+decodedMessage = decrypt_message(cipher, private_key)
 print('Plaintext:', decodedMessage)
