@@ -25,10 +25,13 @@ class Server:
                 c.close()
                 break
     
+    def decrypt(self, cypertext, key):
+        print('decrypting...')
+
     def myHandler(self,c,a):
         newconnection = None
         while True:
-            try:
+            # try:
                 data = c.recv(6000)
                 datadict = None
                 try:
@@ -39,28 +42,74 @@ class Server:
                 # print(datadict)
                 #! Check and establish new connection if you receive 'person' json
                 #! Then add it to connections list
-                if 'person' in datadict:
+                if 'person' in datadict and newconnection is None:
                     persondata = datadict['person']
                     newconnection = ConnectionObj(persondata['id'],persondata['name'],persondata['key'],c)
                     self.connections.append(newconnection)
                     #TODO send response with own public key
                     print(self.connections)
 
-                #! Different Cases:
-                if 'message' in datadict:
-                    #TODO decrypt using public key given by user
-                    pass
+                elif 'keyrequest' in datadict and newconnection is not None:
+                    print('received a keyrequest?:')
+                    print(datadict)
+                    recipientstring = datadict['keyrequest']
+                    recipient = None
+                    for con in self.connections:
+                        # if con.id is recipientstring or con.name is recipientstring:
+                        # print(con.id)
+                        # print(recipientstring)
+                        if con.id == recipientstring or con.name == recipientstring:
+                            #TODO build check for multiple people of same name
+                            print('this recipient matches!')
+                            recipient = con
+                    if recipient is not None:
+                        newconnection.send({"pubkey":{"id":con.id,"key":con.key}})
+
                 
+                elif 'message' in datadict and newconnection is not None:
+                    #* We never decrypt the message here!
+                    messagedata = datadict['message']
+                    #! First: figure out who the receiver is:
+                    recipientstring = messagedata['rec']
+                    recipient = None
+                    for con in self.connections:
+                        # if con.id is recipientstring or con.name is recipientstring:
+                        print(con.id)
+                        print(recipientstring)
+                        if con.id == recipientstring:
+                            #TODO build check for multiple people of same name
+                            print('this recipient matches!')
+                            recipient = con
+                    if recipient is None:
+                        print('this recipient was not found:')
+                        print(messagedata)
+                    else:
+                        dicttosend = dict(messagedata)
+                        # dicttosend['message'].pop('rec', None)
+                        dicttosend['senderName'] = newconnection.name
+                        dicttosend['senderID'] = newconnection.id
+                        print('trying to send this: ')
+                        print(dicttosend)
+                        print('to: ')
+                        print(recipient.id)
+                        recipient.send(dicttosend)
+
+                else:
+                    print('this json was not recognized:')
+                    print(datadict)
+            
+
                 if not data:
                     print(str(a[0])+ ':' + str(a[1]), "disconnected")
                     self.connections.remove(newconnection)
                     newconnection.c.close()
                     break
-            except:
-                print(str(a[0])+ ':' + str(a[1]), "disconnected")
-                self.connections.remove(newconnection)
-                newconnection.c.close()
-                break
+            # except Exception as e:
+            #     print(e)
+            #     print(str(a[0])+ ':' + str(a[1]), "disconnected")
+            #     self.connections.remove(newconnection)
+            #     newconnection.c.close()
+            #     break
             
     
     def run(self):
@@ -81,6 +130,15 @@ class Client:
     def sendMsg(self):
         while True:
             self.sock.send(bytes(input(""),'utf-8'))
+            #!!!!!!!!!!!! TEST 
+            # f = open ('messagetest1.json', encoding='utf-8') 
+            f = open ('keyreq1.json', encoding='utf-8') 
+            data = json.loads(f.read())
+            json_object = json.dumps(data, indent = 4)   
+            # self.sock.send(bytes(f))
+            self.sock.send(bytes(json_object, encoding = 'utf-8'))
+            # self.sock.send(data)
+            #!!!!!!!!!!!!!!!!
     
     def __init__(self, jsonfile):
         f = open (jsonfile, encoding='utf-8') 
@@ -112,7 +170,18 @@ class Client:
             data = self.sock.recv(6000)
             if not data:
                 break
-            print(data)
+            
+            try:
+                datadict = json.loads(data)
+
+                
+
+
+
+            except:
+                print(data)
+                datadict = {}
+            print(datadict)
 
 if (len(sys.argv) > 1):
     client = Client(sys.argv[1])
