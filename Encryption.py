@@ -13,7 +13,7 @@ def encrypt_message(plain_text, pubkey):
     # Encrypts message to RSA cipher using the public key of the recipient
     # rsa.encrypt takes UTF-8 encoding only
     #! PUBKEY FROM STRING TO PUBKEY (ik vond het niet in de documentatie)
-
+    
     plain_text = plain_text.encode('utf8')
     cipher = rsa.encrypt(plain_text, pubkey)
     return cipher

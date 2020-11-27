@@ -64,13 +64,15 @@ class Server:
                             print('this recipient matches!')
                             recipient = con
                     if recipient is not None:
-                        newconnection.send({"pubkey":{"id":con.id,"key":con.key}})
+                        newconnection.send({"pubkey":{"id":recipient.id,"key":recipient.key}})
 
                 
                 elif 'message' in datadict and newconnection is not None:
                     #* We never decrypt the message here!
                     messagedata = datadict['message']
                     #! First: figure out who the receiver is:
+                    print('datadict w message:')
+                    print(datadict)
                     recipientstring = messagedata['rec']
                     recipient = None
                     for con in self.connections:
@@ -130,8 +132,8 @@ class Client:
     messagetosend = "this is empty"
     def sendMsg(self):
         while True:
-            self.sock.send(bytes(input(""),'utf-8'))
-            messagetosend = input("")
+            # self.sock.send(bytes(input(""),'utf-8'))
+            self.messagetosend = input("")
             #!!!!!!!!!!!! TEST 
             # f = open ('messagetest1.json', encoding='utf-8') 
             f = open ('keyreq1.json', encoding='utf-8') 
@@ -180,12 +182,21 @@ class Client:
                 print('unecrtyped message:')
                 print(self.messagetosend)
                 print('key: $s',datadict['pubkey']['key'])
-                en = encrypt_message(self.messagetosend,datadict['pubkey']['key'])
+                # en = encrypt_message(self.messagetosend,datadict['pubkey']['key'])
+                en =  "act like this is encrypted"
                 print('encrypted message: ')
                 print(en)
+                # message = {"message":{"rec": datadict['pubkey']['id'], "mes": en}}
+                message = {"message":{"rec": datadict['pubkey']['id'], "mes": en}}
+
+                print(message)
+                json_object = json.dumps(message, indent = 4)   
+                # self.sock.send(bytes(f))
+                self.sock.send(bytes(json_object, encoding = 'utf-8'))
                 
 
-
+            else:
+                print(datadict)
 
             # except:
             #     print(data)
