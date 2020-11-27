@@ -12,6 +12,8 @@ def generate_keys(keylength):
 def encrypt_message(plain_text, pubkey):
     # Encrypts message to RSA cipher using the public key of the recipient
     # rsa.encrypt takes UTF-8 encoding only
+    #! PUBKEY FROM STRING TO PUBKEY (ik vond het niet in de documentatie)
+
     plain_text = plain_text.encode('utf8')
     cipher = rsa.encrypt(plain_text, pubkey)
     return cipher
@@ -23,15 +25,15 @@ def decrypt_message(cipher_text, privkey):
     return plain_message.decode('utf8')
 
 
-# NOTE Demo: Key length 1024 results in 117 bytes of space. More needed for more robust messaging,
-# but key generation will take longer.
-public_key, private_key = generate_keys(1024)
-print('Public key: ', public_key)
-print('Privatekey: ', private_key)
-message = 'This is a sentence showing the limit of what we can do with a key of length 1024. A max of 117 bytes looks like this.'
+# # NOTE Demo: Key length 1024 results in 117 bytes of space. More needed for more robust messaging,
+# # but key generation will take longer.
+# public_key, private_key = generate_keys(1024)
+# print('Public key: ', public_key)
+# print('Privatekey: ', private_key)
+# message = 'This is a sentence showing the limit of what we can do with a key of length 1024. A max of 117 bytes looks like this.'
 
-cipher = encrypt_message(message, public_key)
-print('Cipher: ', cipher)
+# cipher = encrypt_message(message, public_key)
+# print('Cipher: ', cipher)
 
-decodedMessage = decrypt_message(cipher, private_key)
-print('Plaintext:', decodedMessage)
+# decodedMessage = decrypt_message(cipher, private_key)
+# print('Plaintext:', decodedMessage)

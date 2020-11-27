@@ -4,6 +4,7 @@ import threading
 import sys
 import json
 from connection_obj import *
+from Encryption import encrypt_message
 
 class Server:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -126,10 +127,11 @@ class Server:
 
 class Client:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+    messagetosend = "this is empty"
     def sendMsg(self):
         while True:
             self.sock.send(bytes(input(""),'utf-8'))
+            messagetosend = input("")
             #!!!!!!!!!!!! TEST 
             # f = open ('messagetest1.json', encoding='utf-8') 
             f = open ('keyreq1.json', encoding='utf-8') 
@@ -171,17 +173,24 @@ class Client:
             if not data:
                 break
             
-            try:
-                datadict = json.loads(data)
+            # try:
+            datadict = json.loads(data)
 
+            if 'pubkey' in datadict:
+                print('unecrtyped message:')
+                print(self.messagetosend)
+                print('key: $s',datadict['pubkey']['key'])
+                en = encrypt_message(self.messagetosend,datadict['pubkey']['key'])
+                print('encrypted message: ')
+                print(en)
                 
 
 
 
-            except:
-                print(data)
-                datadict = {}
-            print(datadict)
+            # except:
+            #     print(data)
+            #     datadict = {}
+            # print(datadict)
 
 if (len(sys.argv) > 1):
     client = Client(sys.argv[1])
