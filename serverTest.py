@@ -116,8 +116,13 @@ class Server:
                         
                 
                 elif 'received' in datadict and newconnection is not None:
-                    print('received')
+                    print('this dict was received:')
+                    print(datadict)
                     newconnection.messagesToReceive.remove(datadict['received'])
+                    sender = next(connection for connection in self.connections if connection.id == datadict['received']['message']['senderID'])
+                    stringtosend = "Your message saying \"",datadict['received']['message']['mes'],"\" was received:"
+                    if sender is not None:
+                        sender.send({"received":stringtosend})
                 else:
                     print('this json was not recognized:')
                     print(datadict)
@@ -137,9 +142,14 @@ class Server:
             
     def keepResending(self, dict, receiver):
         # time.sleep(5)
-        while(dict in receiver.messagesToReceive):
+        #TODO set this to the correct limit for the sender
+        limit = 5
+        i = 0
+        while(dict in receiver.messagesToReceive and i<limit):
+            i = i+1
             print('That dict is definitly not received.')
             receiver.send(dict)
+            #TODO set this to the correct timeouttime set by the sender
             time.sleep(5)
 
         
@@ -262,6 +272,8 @@ class Client:
             elif 'registered' in datadict:
                 self.registered = True
 
+            elif 'received' in datadict:
+                print(datadict['received'])
             else:
                 print(datadict)
 
