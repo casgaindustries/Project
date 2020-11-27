@@ -1,10 +1,19 @@
 #Server File
+import time
 import socket
 import threading
 import sys
 import json
 from connection_obj import *
 from Encryption import encrypt_message
+import re
+import random
+import string
+def get_random_string():
+    # Random string with the combination of lower and upper case
+    letters = string.ascii_letters
+    return ''.join(random.choice(letters) for i in range(10))
+    # print("Random string is:", result_str)
 
 class Server:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -47,7 +56,7 @@ class Server:
                     persondata = datadict['person']
                     newconnection = ConnectionObj(persondata['id'],persondata['name'],persondata['key'],c)
                     self.connections.append(newconnection)
-                    #TODO send response with own public key
+                    newconnection.send({"registered":{}})
                     print(self.connections)
 
                 elif 'keyrequest' in datadict and newconnection is not None:
@@ -92,11 +101,23 @@ class Server:
                         dicttosend['senderName'] = newconnection.name
                         dicttosend['senderID'] = newconnection.id
                         print('trying to send this: ')
-                        print(dicttosend)
+                        newdicttosend  = {"message":dicttosend}
+                        print(newdicttosend)
                         print('to: ')
                         print(recipient.id)
-                        recipient.send(dicttosend)
+                        # recipient.send(newdicttosend)
 
+                        #! for now we send stuff twice
+                        #* Start a new thread that keeps trying to send the message to the receiver
+                        recipient.messagesToReceive.append(newdicttosend)
+                        iThread = threading.Thread(target = self.keepResending(newdicttosend,recipient))
+                        iThread.deamon = True
+                        iThread.start()
+                        
+                
+                elif 'received' in datadict and newconnection is not None:
+                    print('received')
+                    newconnection.messagesToReceive.remove(datadict['received'])
                 else:
                     print('this json was not recognized:')
                     print(datadict)
@@ -114,7 +135,16 @@ class Server:
             #     newconnection.c.close()
             #     break
             
-    
+    def keepResending(self, dict, receiver):
+        # time.sleep(5)
+        while(dict in receiver.messagesToReceive):
+            print('That dict is definitly not received.')
+            receiver.send(dict)
+            time.sleep(5)
+
+        
+        print('That dict is received')
+
     def run(self):
         while True:
             #connection is c, cliens' adres is a
@@ -130,10 +160,38 @@ class Server:
 class Client:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     messagetosend = "this is empty"
-    def sendMsg(self):
+    typed = "typed text "
+    typedsplit = []
+    registered = False
+    def askKey(self):
+        askdict = {"keyrequest":self.typedsplit[1]}
+        json_object = json.dumps(askdict, indent = 4)   
+        self.sock.send(bytes(json_object, encoding = 'utf-8'))
+
+    def handleInput(self):
         while True:
             # self.sock.send(bytes(input(""),'utf-8'))
-            self.messagetosend = input("")
+            self.typed = input("")
+            self.typedsplit = self.typed.split()
+            temp = [self.typedsplit[0]]
+            reststring = ' '.join(self.typedsplit[1:])
+            temp2 = re.findall("\[(.*?)\]", reststring)
+            temp = temp + temp2
+            self.typedsplit = temp
+            print('input:  ')
+            for e in self.typedsplit:
+                print(e)
+            if(self.typedsplit[0] == "SEND" and self.registered):
+                print('Send message detected')
+                self.askKey()
+
+    
+    def testloop(self):
+         while True:
+            self.typed = input("")
+
+            
+
             #!!!!!!!!!!!! TEST 
             # f = open ('messagetest1.json', encoding='utf-8') 
             f = open ('keyreq1.json', encoding='utf-8') 
@@ -143,7 +201,7 @@ class Client:
             self.sock.send(bytes(json_object, encoding = 'utf-8'))
             # self.sock.send(data)
             #!!!!!!!!!!!!!!!!
-    
+
     def __init__(self, jsonfile):
         f = open (jsonfile, encoding='utf-8') 
         self.data = json.loads(f.read()) 
@@ -166,7 +224,7 @@ class Client:
         # self.sock.send(bytes(myPersonJson, 'utf-8'))
         self.sock.sendall(myPersonJson)
 
-        iThread = threading.Thread(target = self.sendMsg)
+        iThread = threading.Thread(target = self.handleInput)
         iThread.deamon = True
         iThread.start()
 
@@ -180,20 +238,29 @@ class Client:
 
             if 'pubkey' in datadict:
                 print('unecrtyped message:')
-                print(self.messagetosend)
+                print(' '.join(self.typedsplit[2:]))
                 print('key: $s',datadict['pubkey']['key'])
                 # en = encrypt_message(self.messagetosend,datadict['pubkey']['key'])
                 en =  "act like this is encrypted"
+                en = ' '.join(self.typedsplit[2:])
                 print('encrypted message: ')
                 print(en)
                 # message = {"message":{"rec": datadict['pubkey']['id'], "mes": en}}
-                message = {"message":{"rec": datadict['pubkey']['id'], "mes": en}}
-
+                message = {"message":{"rec": datadict['pubkey']['id'], "mes": en, "mesid": get_random_string() }}
                 print(message)
                 json_object = json.dumps(message, indent = 4)   
                 # self.sock.send(bytes(f))
                 self.sock.send(bytes(json_object, encoding = 'utf-8'))
-                
+            
+            elif 'message' in datadict:
+                #TODO DECRYPT THIS WHEN IT IS ACTUALLY ENCRYPTED
+                print('received a message from ',datadict['message']['senderName'],':')
+                print("\'",datadict['message']['mes'],"\'")
+                print('corresponding dict: ',datadict)
+                self.sock.send(bytes(json.dumps({"received":datadict}, indent = 4), encoding = 'utf-8'))
+
+            elif 'registered' in datadict:
+                self.registered = True
 
             else:
                 print(datadict)
@@ -209,4 +276,3 @@ else:
     server = Server()
     server.run()
 
-    

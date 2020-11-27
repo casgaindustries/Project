@@ -4,7 +4,8 @@ class ConnectionObj:
     id = None
     name = None
     key = None
-    
+    messagesToReceive = []
+
     #The actual connection object which python understands:
     c= None
 
