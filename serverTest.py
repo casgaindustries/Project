@@ -38,8 +38,80 @@ class Server:
     def decrypt(self, cypertext, key):
         print('decrypting...')
 
+    def registerPerson(self,datadict,c):
+        persondata = datadict['person']
+        newconnection = ConnectionObj(persondata['id'],persondata['name'],persondata['key'],c)
+        self.connections.append(newconnection)
+        newconnection.send({"registered":{}})
+        print(self.connections)
+        return newconnection
+    
+    def retreiveKeyRequest(self,datadict,newconnection):
+        print('received a keyrequest?:')
+        print(datadict)
+        recipientstring = datadict['keyrequest']
+        recipient = None
+        for con in self.connections:
+            # if con.id is recipientstring or con.name is recipientstring:
+            # print(con.id)
+            # print(recipientstring)
+            if con.id == recipientstring or con.name == recipientstring:
+                #TODO build check for multiple people of same name
+                print('this recipient matches!')
+                recipient = con
+        if recipient is not None:
+            newconnection.send({"pubkey":{"id":recipient.id,"key":recipient.key}})
+    
+    def sendMessage(self,datadict,newconnection):
+        #* We never decrypt the message here!
+        messagedata = datadict['message']
+        #! First: figure out who the receiver is:
+        print('datadict w message:')
+        print(datadict)
+        recipientstring = messagedata['rec']
+        recipient = None
+        for con in self.connections:
+            # if con.id is recipientstring or con.name is recipientstring:
+            print(con.id)
+            print(recipientstring)
+            if con.id == recipientstring:
+                #TODO build check for multiple people of same name
+                print('this recipient matches!')
+                recipient = con
+        if recipient is None:
+            print('this recipient was not found:')
+            print(messagedata)
+        else:
+            dicttosend = dict(messagedata)
+            # dicttosend['message'].pop('rec', None)
+            dicttosend['senderName'] = newconnection.name
+            dicttosend['senderID'] = newconnection.id
+            print('trying to send this: ')
+            newdicttosend  = {"message":dicttosend}
+            print(newdicttosend)
+            print('to: ')
+            print(recipient.id)
+            # recipient.send(newdicttosend)
+
+            #! for now we send stuff twice
+            #* Start a new thread that keeps trying to send the message to the receiver
+            recipient.messagesToReceive.append(newdicttosend)
+            iThread = threading.Thread(target = self.keepResending(newdicttosend,recipient))
+            iThread.deamon = True
+            iThread.start()
+    
+    def confirmReceived(self,datadict,connection):
+        print('this dict was received:')
+        print(datadict)
+        connection.messagesToReceive.remove(datadict['received'])
+        sender = next(connection for connection in self.connections if connection.id == datadict['received']['message']['senderID'])
+        stringtosend = "Your message saying \"",datadict['received']['message']['mes'],"\" was received:"
+        if sender is not None:
+            sender.send({"received":stringtosend})
+
     def myHandler(self,c,a):
         newconnection = None
+        
         while True:
             # try:
                 data = c.recv(6000)
@@ -49,85 +121,23 @@ class Server:
                 except:
                     print(data)
                     datadict = {}
-                # print(datadict)
-                #! Check and establish new connection if you receive 'person' json
-                #! Then add it to connections list
+            
                 if 'person' in datadict and newconnection is None:
-                    persondata = datadict['person']
-                    newconnection = ConnectionObj(persondata['id'],persondata['name'],persondata['key'],c)
-                    self.connections.append(newconnection)
-                    newconnection.send({"registered":{}})
-                    print(self.connections)
+                    newconnection = self.registerPerson(datadict,c)
 
                 elif 'keyrequest' in datadict and newconnection is not None:
-                    print('received a keyrequest?:')
-                    print(datadict)
-                    recipientstring = datadict['keyrequest']
-                    recipient = None
-                    for con in self.connections:
-                        # if con.id is recipientstring or con.name is recipientstring:
-                        # print(con.id)
-                        # print(recipientstring)
-                        if con.id == recipientstring or con.name == recipientstring:
-                            #TODO build check for multiple people of same name
-                            print('this recipient matches!')
-                            recipient = con
-                    if recipient is not None:
-                        newconnection.send({"pubkey":{"id":recipient.id,"key":recipient.key}})
+                    self.retreiveKeyRequest(datadict,newconnection)
 
-                
                 elif 'message' in datadict and newconnection is not None:
-                    #* We never decrypt the message here!
-                    messagedata = datadict['message']
-                    #! First: figure out who the receiver is:
-                    print('datadict w message:')
-                    print(datadict)
-                    recipientstring = messagedata['rec']
-                    recipient = None
-                    for con in self.connections:
-                        # if con.id is recipientstring or con.name is recipientstring:
-                        print(con.id)
-                        print(recipientstring)
-                        if con.id == recipientstring:
-                            #TODO build check for multiple people of same name
-                            print('this recipient matches!')
-                            recipient = con
-                    if recipient is None:
-                        print('this recipient was not found:')
-                        print(messagedata)
-                    else:
-                        dicttosend = dict(messagedata)
-                        # dicttosend['message'].pop('rec', None)
-                        dicttosend['senderName'] = newconnection.name
-                        dicttosend['senderID'] = newconnection.id
-                        print('trying to send this: ')
-                        newdicttosend  = {"message":dicttosend}
-                        print(newdicttosend)
-                        print('to: ')
-                        print(recipient.id)
-                        # recipient.send(newdicttosend)
-
-                        #! for now we send stuff twice
-                        #* Start a new thread that keeps trying to send the message to the receiver
-                        recipient.messagesToReceive.append(newdicttosend)
-                        iThread = threading.Thread(target = self.keepResending(newdicttosend,recipient))
-                        iThread.deamon = True
-                        iThread.start()
-                        
-                
+                    self.sendMessage(datadict,newconnection)
+                  
                 elif 'received' in datadict and newconnection is not None:
-                    print('this dict was received:')
-                    print(datadict)
-                    newconnection.messagesToReceive.remove(datadict['received'])
-                    sender = next(connection for connection in self.connections if connection.id == datadict['received']['message']['senderID'])
-                    stringtosend = "Your message saying \"",datadict['received']['message']['mes'],"\" was received:"
-                    if sender is not None:
-                        sender.send({"received":stringtosend})
+                    self.confirmReceived(datadict,newconnection)
+                
                 else:
                     print('this json was not recognized:')
                     print(datadict)
             
-
                 if not data:
                     print(str(a[0])+ ':' + str(a[1]), "disconnected")
                     self.connections.remove(newconnection)
@@ -147,7 +157,7 @@ class Server:
         i = 0
         while(dict in receiver.messagesToReceive and i<limit):
             i = i+1
-            print('That dict is definitly not received.')
+            print('sending dict again, because no response has come back')
             receiver.send(dict)
             #TODO set this to the correct timeouttime set by the sender
             time.sleep(5)
