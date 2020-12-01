@@ -1,0 +1,19 @@
+{
+    "name":"The second company",
+    "id": "KSJFKLJKLSJFKLSJFLKSJLKSJFLJKS",
+    "employees":[
+        {
+            "id": "fjkdlsjflksdjflkjslkfj",
+            "roles":[
+                "Moderator",
+                "Employee"
+            ]
+        },
+        {
+            "id": "KDJSLKFJSLKJFKLJ",
+            "roles":[
+                "Employee"
+            ]
+        }
+    ]
+}

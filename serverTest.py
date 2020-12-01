@@ -5,6 +5,8 @@ import threading
 import sys
 import json
 from connection_obj import *
+from organisation import *
+
 from Encryption import encrypt_message
 import re
 import random
@@ -18,25 +20,26 @@ def get_random_string():
 class Server:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     connections = []
+    organisations = []
     def __init__(self):
         self.sock.bind(('0.0.0.0',10000))
         self.sock.listen(1)
+        self.createOrgsFromFiles(['organisation_1.json','organisation_2.json'])
 
-    def handler(self,c,a):
-        while True:
-            data = c.recv(6000)
-            for connection in self.connections:
-                print( 'newdadta')
-                print(data)
-                connection.send(bytes(data))
-            if not data:
-                print(str(a[0])+ ':' + str(a[1]), "disconnected")
-                self.connections.remove(c)
-                c.close()
-                break
-    
+
     def decrypt(self, cypertext, key):
-        print('decrypting...')
+        print('decrypting...') 
+
+    def createOrgsFromFiles(self, files):
+        for filename in files:
+            f = open (filename, encoding='utf-8') 
+            orgdict = json.loads(f.read()) 
+            org = Organisation(orgdict)
+            self.organisations.append(org)
+        if(True):
+            print('Created orgs: ')
+            print(self.organisations)
+            print(" ")
 
     def registerPerson(self,datadict,c):
         persondata = datadict['person']
@@ -109,11 +112,43 @@ class Server:
         if sender is not None:
             sender.send({"received":stringtosend})
 
+    def getCurrentlyOnline(self,newconnection):
+        #First check in which org this person is located
+        myOrg = None
+        for org in self.organisations:
+            if any(em.id == newconnection.id for em in org.employees):
+                print(' ')
+                print('Your org is: ' )
+                print(org)
+                print(' ')
+                myOrg = org
+        if(myOrg is None):
+            print('No org found for this user!')
+            return 
+        
+        online = []
+        for em in myOrg.employees:
+            for connection in self.connections:
+                if(connection.id == em.id and connection.id != newconnection.id):
+                    online.append(connection)
+            # if any(connection.id == em.id for connection in self.connections):
+            #     if(em.id!=newconnection.id):
+            #         online.append(em)
+        print('These people are online in your company:')
+        print(online)
+        
+        #TODO RETURN THE COLLEAGUES ONLINE:
+        
+
+
+
+            
+
     def myHandler(self,c,a):
         newconnection = None
         
         while True:
-            # try:
+            try:
                 data = c.recv(6000)
                 datadict = None
                 try:
@@ -121,7 +156,7 @@ class Server:
                 except:
                     print(data)
                     datadict = {}
-            
+
                 if 'person' in datadict and newconnection is None:
                     newconnection = self.registerPerson(datadict,c)
 
@@ -134,6 +169,10 @@ class Server:
                 elif 'received' in datadict and newconnection is not None:
                     self.confirmReceived(datadict,newconnection)
                 
+                elif 'getCurrentlyOnline' in datadict and newconnection is not None:
+                    self.getCurrentlyOnline(newconnection)
+                
+                
                 else:
                     print('this json was not recognized:')
                     print(datadict)
@@ -143,12 +182,12 @@ class Server:
                     self.connections.remove(newconnection)
                     newconnection.c.close()
                     break
-            # except Exception as e:
-            #     print(e)
-            #     print(str(a[0])+ ':' + str(a[1]), "disconnected")
-            #     self.connections.remove(newconnection)
-            #     newconnection.c.close()
-            #     break
+            except Exception as e:
+                print(e)
+                print(str(a[0])+ ':' + str(a[1]), "disconnected")
+                self.connections.remove(newconnection)
+                newconnection.c.close()
+                break
             
     def keepResending(self, dict, receiver):
         # time.sleep(5)
@@ -161,9 +200,10 @@ class Server:
             receiver.send(dict)
             #TODO set this to the correct timeouttime set by the sender
             time.sleep(5)
-
-        
-        print('That dict is received')
+        if(not i<limit):
+            print('gave up sending the dict to receiver')
+        else:
+            print('receiver confirmed the message')
 
     def run(self):
         while True:
@@ -188,6 +228,11 @@ class Client:
         json_object = json.dumps(askdict, indent = 4)   
         self.sock.send(bytes(json_object, encoding = 'utf-8'))
 
+    def getCurrentlyOnline(self):
+        askdict = {"getCurrentlyOnline":'dummy'}
+        json_object = json.dumps(askdict, indent = 4)   
+        self.sock.send(bytes(json_object, encoding = 'utf-8'))
+
     def handleInput(self):
         while True:
             # self.sock.send(bytes(input(""),'utf-8'))
@@ -204,6 +249,9 @@ class Client:
             if(self.typedsplit[0] == "SEND" and self.registered):
                 print('Send message detected')
                 self.askKey()
+            if(self.typedsplit[0]== "GETONLINE" and self.registered):
+                print("asking who's online")
+                self.getCurrentlyOnline()
 
     
     def testloop(self):
