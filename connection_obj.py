@@ -26,3 +26,6 @@ class ConnectionObj:
 
     def __repr__(self):
         return self.__str__()
+    
+    def asdict(self):
+        return {'id': self.id, 'name': self.name}

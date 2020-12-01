@@ -137,9 +137,13 @@ class Server:
         print('These people are online in your company:')
         print(online)
         
-        #TODO RETURN THE COLLEAGUES ONLINE:
-        
+        onlinedictarray = []
+        for connection in online:
+            onlinedictarray.append(connection.asdict())
+        onlineDict = {"online":onlinedictarray}
+        print(onlineDict)
 
+        newconnection.send(onlineDict)
 
 
             
@@ -223,6 +227,9 @@ class Client:
     typed = "typed text "
     typedsplit = []
     registered = False
+    onlineColleagues = None
+
+
     def askKey(self):
         askdict = {"keyrequest":self.typedsplit[1]}
         json_object = json.dumps(askdict, indent = 4)   
@@ -326,6 +333,12 @@ class Client:
                 print("\'",datadict['message']['mes'],"\'")
                 print('corresponding dict: ',datadict)
                 self.sock.send(bytes(json.dumps({"received":datadict}, indent = 4), encoding = 'utf-8'))
+            
+            elif 'online' in datadict:
+                #TODO DO SOMETHING WITH THE RETURNED EMPLOYEES
+                print('THESE ARE YOUR ONINE COLLEAGUES:')
+                print(datadict)
+                self.onlineColleagues = datadict['online']
 
             elif 'registered' in datadict:
                 self.registered = True
