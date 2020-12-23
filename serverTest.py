@@ -6,7 +6,7 @@ import sys
 import json
 from connection_obj import *
 from organisation import *
-
+from session import *
 from Encryption import encrypt_message
 import re
 import random
@@ -112,7 +112,7 @@ class Server:
         if sender is not None:
             sender.send({"received":stringtosend})
 
-    def getCurrentlyOnline(self,newconnection):
+    def getCurrentlyOnlineMyOrg(self,newconnection):
         #First check in which org this person is located
         myOrg = None
         for org in self.organisations:
@@ -125,18 +125,13 @@ class Server:
         if(myOrg is None):
             print('No org found for this user!')
             return 
-        
         online = []
         for em in myOrg.employees:
             for connection in self.connections:
                 if(connection.id == em.id and connection.id != newconnection.id):
                     online.append(connection)
-            # if any(connection.id == em.id for connection in self.connections):
-            #     if(em.id!=newconnection.id):
-            #         online.append(em)
         print('These people are online in your company:')
         print(online)
-        
         onlinedictarray = []
         for connection in online:
             onlinedictarray.append(connection.asdict())
@@ -145,8 +140,96 @@ class Server:
 
         newconnection.send(onlineDict)
 
+    def getOrg(self,orgString):
+        #Gets the employees currently online given a company ID or name
+        theOrg = None
+        for org in self.organisations:
+            if (org.id==orgString or org.name==orgString):
+                theOrg=org
+                print("Org found: "+org.name)
+        if(theOrg is None):
+            print("There was no org found for this string: "+orgString)
+        elif(theOrg.employees == []):
+            print("There are no employees online for this org!")
+        return theOrg  
+    
+    #method which returns employee and connection object related to session id
+    def getConnectionAndEmployee(self, org, sessionID):
+        em = None
+        for e in org.employees:
+            print(e.id + " has the following sessions:")
+            print(e.mySessions)
+            for s in e.mySessions:
+                if(s == sessionID):
+                    em = e
+                    print(e.id + "Had the correct session id...")
+        
+        con = None
+        for conn in self.connections:
+            if conn.id == em.id:
+                con = conn
+        
+        return con, em
 
-            
+    def getOnlineInOrg(self,org):
+        online = []
+        for em in org.employees:
+            for connection in self.connections:
+                if(connection.id == em.id):
+                    online.append(em)
+        print('These people are online in your company:')
+        print(online)
+        return(online)
+        
+    def createOrgSession(self,newconnection,datadict):
+        print('Creating a new session between: '+datadict['communicateWithOrg']+" and "+ newconnection.name)
+        org = self.getOrg(datadict['communicateWithOrg'])
+        sessionID = get_random_string()
+        print("Session ID: ", sessionID)
+        onlineInOrg = self.getOnlineInOrg(org)
+        connectionBuddy = random.choice(onlineInOrg)
+        connectionBuddy.mySessions.append(sessionID)
+        
+        ###! just to test
+        print('----------THE TEST STATEMENT-------')
+        for e in org.employees:
+            print(e)
+        ##! 
+        connectionBuddyCon = None
+        for conn in self.connections:
+            if conn.id == connectionBuddy.id:
+                print('Found connection obj for buddy')
+                connectionBuddyCon = conn
+                break
+
+        print(connectionBuddy)
+        #TODO return dict/json with key of the recipient employee and the session id
+        returndict = {"employeeContact":{
+            "key":connectionBuddyCon.key,
+            "sessionID":sessionID,
+            "orgID":org.id,
+            "orgName":org.name
+        }}
+        newconnection.send(returndict)
+
+    def messageOrg(self,newconnection,datadict):
+        d = datadict['messageOrg']
+        org = self.getOrg(d['orgID'])
+        con, em = self.getConnectionAndEmployee(org,d['sessionID'])
+        print('messaging: Connection object, Employee object' )
+        print(con)
+        print(em)
+
+        dicttosend = {"messageThroughOrg":{
+            "orgID":d['orgID'],
+            "orgName": d['orgName'],
+            "sessionID":d['sessionID'],
+            "senderID": newconnection.id,
+            "senderName": newconnection.name,
+            "senderKey": newconnection.key,
+        }}
+
+        con.send(dicttosend)
 
     def myHandler(self,c,a):
         newconnection = None
@@ -174,8 +257,13 @@ class Server:
                     self.confirmReceived(datadict,newconnection)
                 
                 elif 'getCurrentlyOnline' in datadict and newconnection is not None:
-                    self.getCurrentlyOnline(newconnection)
+                    self.getCurrentlyOnlineMyOrg(newconnection)
                 
+                elif 'communicateWithOrg' in datadict and newconnection is not None:
+                    self.createOrgSession(newconnection,datadict)
+
+                elif 'messageOrg' in datadict and newconnection is not None:
+                    self.messageOrg(newconnection,datadict)
                 
                 else:
                     print('this json was not recognized:')
@@ -228,7 +316,11 @@ class Client:
     typedsplit = []
     registered = False
     onlineColleagues = None
+    sessions = []
 
+    def sendOverSocket(self, dicttosend):
+        json_object = json.dumps(dicttosend, indent = 4)   
+        self.sock.send(bytes(json_object, encoding = 'utf-8'))
 
     def askKey(self):
         askdict = {"keyrequest":self.typedsplit[1]}
@@ -239,6 +331,32 @@ class Client:
         askdict = {"getCurrentlyOnline":'dummy'}
         json_object = json.dumps(askdict, indent = 4)   
         self.sock.send(bytes(json_object, encoding = 'utf-8'))
+    
+    def getOrgConnection(self):
+        askdict = {"communicateWithOrg":self.typedsplit[1]}
+        json_object = json.dumps(askdict, indent = 4)   
+        self.sock.send(bytes(json_object, encoding = 'utf-8'))
+    
+    def messageOrg(self):
+        print('Messaging org!')
+        session = None
+        for s in self.sessions:
+            if s.orgName == self.typedsplit[1] or s.orgID == self.typedsplit[1]:
+                print('Found session!: ')
+                print(s)
+                session = s
+        if session is None:
+            print('Session was not found, no message sent')
+        else:
+            #TODO ENCRYPT USING RECEIVED KEY
+            dicttosend = {"messageOrg":{
+                "sessionID":session.id,
+                "orgName": session.orgName,
+                "orgID": session.orgID,
+                "message": "encrypted message to org!"
+            }}
+            self.sendOverSocket(dicttosend)
+
 
     def handleInput(self):
         while True:
@@ -259,7 +377,11 @@ class Client:
             if(self.typedsplit[0]== "GETONLINE" and self.registered):
                 print("asking who's online")
                 self.getCurrentlyOnline()
-
+            if(self.typedsplit[0]== "GETORGCONNECTION" and self.registered):
+                print("Getting org connection")
+                self.getOrgConnection()
+            if(self.typedsplit[0]== "MESSAGEORG" and self.registered):
+                self.messageOrg()
     
     def testloop(self):
          while True:
@@ -276,6 +398,13 @@ class Client:
             self.sock.send(bytes(json_object, encoding = 'utf-8'))
             # self.sock.send(data)
             #!!!!!!!!!!!!!!!!
+
+    def setEmployeeContact(self, dict):
+        print('Setting employee contact lmao')
+        self.sessions.append(Session(dict))
+        print('Sessions: ')
+        print(self.sessions)
+        
 
     def __init__(self, jsonfile):
         f = open (jsonfile, encoding='utf-8') 
@@ -345,6 +474,13 @@ class Client:
 
             elif 'received' in datadict:
                 print(datadict['received'])
+            
+            elif 'employeeContact' in datadict:
+                print('Received employeeContact!')
+                # print(datadict)
+                self.setEmployeeContact(datadict['employeeContact'])
+            
+
             else:
                 print(datadict)
 

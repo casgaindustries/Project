@@ -3,11 +3,12 @@
 class Organisation:
     name = None
     id = None
-    employees = []
+    # employees = []
 
     def __init__(self, orgdict):
         self.name = orgdict['name']
         self.id = orgdict['id']
+        self.employees = []
         self.setEmployees(orgdict['employees'])
 
     def setEmployees(self, employeesdict):
@@ -35,16 +36,18 @@ class Organisation:
 
 
 class Employee:
-    id = None
-    myRoles = []
+    # id = None
+    # myRoles = []
+    # mySessions = []
     
     def __init__(self,id,roles):
         self.id = id
         self.myRoles = roles
+        self.mySessions = []
         
     
     def __str__(self):
-        return "%s,  %s" % (self.id, self.myRoles)
+        return "%s,  %s, %s" % (self.id, self.myRoles,self.mySessions)
 
     def __repr__(self):
         return self.__str__()
