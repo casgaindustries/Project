@@ -189,7 +189,6 @@ class Server:
         onlineInOrg = self.getOnlineInOrg(org)
         connectionBuddy = random.choice(onlineInOrg)
         connectionBuddy.mySessions.append(sessionID)
-        
         ###! just to test
         print('----------THE TEST STATEMENT-------')
         for e in org.employees:
@@ -227,6 +226,7 @@ class Server:
             "senderID": newconnection.id,
             "senderName": newconnection.name,
             "senderKey": newconnection.key,
+            "message": d['message']
         }}
 
         con.send(dicttosend)
@@ -353,7 +353,7 @@ class Client:
                 "sessionID":session.id,
                 "orgName": session.orgName,
                 "orgID": session.orgID,
-                "message": "encrypted message to org!"
+                "message": "encrypted: "+self.typedsplit[2]
             }}
             self.sendOverSocket(dicttosend)
 
