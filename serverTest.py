@@ -7,10 +7,20 @@ import json
 from connection_obj import *
 from organisation import *
 from session import *
-from Encryption import encrypt_message
+# from Encryption import encrypt_message
 import re
 import random
 import string
+
+import base64
+
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import AES
+from Crypto import Random
+from Crypto.Hash import SHA256
+from Crypto.Cipher import DES3
+random_generator = Random.new().read
+
 def get_random_string():
     # Random string with the combination of lower and upper case
     letters = string.ascii_letters
@@ -411,6 +421,7 @@ class Client:
         self.data = json.loads(f.read()) 
         print(self.data)
 
+        # self.key = RSA.generate(1024, random_generator)
         
 
         self.sock.connect((self.data['server']['ip'],int(self.data['server']['port'])))
@@ -418,8 +429,14 @@ class Client:
         myPersonDict = self.data['person']
         myPersonDict['keys'] = myPersonDict['keys'].pop('private', None)
         myPersonDict['key'] = myPersonDict.pop('keys')
+        # myPersonDict['key'] = base64.b64encode(self.key.publickey().exportKey(format='PEM', passphrase=None, pkcs=1)).decode('ascii')
+        # myPersonDict['key'] = self.key.publickey()
         finalPersonDict = {}
-        finalPersonDict['person'] = myPersonDict        
+        finalPersonDict['person'] = myPersonDict
+        
+        print('-------------My personal dict:-------------')
+        print(finalPersonDict)
+
         myPersonJson = json.dumps(finalPersonDict).encode('utf-8')
         # myPersonJson = json.dumps(myPersonDict)
 
