@@ -229,8 +229,8 @@ class Server:
             "orgID":d['orgID'],
             "orgName": d['orgName'],
             "sessionID":d['sessionID'],
-            "senderID": newconnection.id,
-            "senderName": newconnection.name,
+            # "senderID": newconnection.id,
+            # "senderName": newconnection.name,
             "senderKey": newconnection.key,
             "message": d['message']
         }}

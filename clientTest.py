@@ -61,11 +61,12 @@ class Client:
             print('Session was not found, no message sent')
         else:
             #TODO ENCRYPT USING RECEIVED KEY
+            enmes = self.myEncrypt.encryptStringToB64(self.typedsplit[2],session.key)
             dicttosend = {"messageOrg":{
                 "sessionID":session.id,
                 "orgName": session.orgName,
                 "orgID": session.orgID,
-                "message": "encrypted: "+self.typedsplit[2]
+                "message": enmes
             }}
             self.sendOverSocket(dicttosend)
 
@@ -180,14 +181,13 @@ class Client:
                 self.sock.send(bytes(json_object, encoding = 'utf-8'))
             
             elif 'message' in datadict:
-                #TODO DECRYPT THIS WHEN IT IS ACTUALLY ENCRYPTED
                 print('received a message from ',datadict['message']['senderName'],':')
-                print("\'",datadict['message']['mes'],"\'")
-                print('corresponding dict: ',datadict)
+                # print("\'",datadict['message']['mes'],"\'")
+                # print('corresponding dict: ',datadict)
 
                 enmes = datadict['message']['mes']
                 mes = self.myEncrypt.decryptB64(enmes)
-                print('Unencrypted text:')
+                # print('Unencrypted text:')
                 print(mes)
                 self.sock.send(bytes(json.dumps({"received":datadict}, indent = 4), encoding = 'utf-8'))
             
@@ -208,10 +208,13 @@ class Client:
                 # print(datadict)
                 self.setEmployeeContact(datadict['employeeContact'])
             
+            elif 'messageThroughOrg' in datadict:
+                print('Message for your Org '+datadict['messageThroughOrg']['orgName']+' from sessionID: '+datadict['messageThroughOrg']['sessionID'])
+                print(self.myEncrypt.decryptB64(datadict['messageThroughOrg']['message']))
 
             else:
                 print(datadict)
-
+            print(' ')
             # except:
             #     print(data)
             #     datadict = {}
