@@ -7,20 +7,12 @@ import json
 from connection_obj import *
 from organisation import *
 from session import *
-# from Encryption import encrypt_message
 import re
 import random
 import string
-# from clienttest import *
 
 import base64
 
-# from Crypto.PublicKey import RSA
-# from Crypto.Cipher import AES
-# from Crypto import Random
-# from Crypto.Hash import SHA256
-# from Crypto.Cipher import DES3
-# random_generator = Random.new().read
 
 from casEncrypt import *
 from clientTest import Client

@@ -14,6 +14,13 @@ import string
 # from serverTest import *
 import base64
 from casEncrypt import *
+
+def get_random_string():
+    # Random string with the combination of lower and upper case
+    letters = string.ascii_letters
+    return ''.join(random.choice(letters) for i in range(10))
+    # print("Random string is:", result_str)
+
 class Client:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     messagetosend = "this is empty"
@@ -159,10 +166,12 @@ class Client:
                 print(' '.join(self.typedsplit[2:]))
                 print('key: $s',datadict['pubkey']['key'])
                 # en = encrypt_message(self.messagetosend,datadict['pubkey']['key'])
-                en =  "act like this is encrypted"
-                en = ' '.join(self.typedsplit[2:])
+                # en =  "act like this is encrypted"
+                unen = ' '.join(self.typedsplit[2:])
+                en = self.myEncrypt.encryptStringToB64(unen,datadict['pubkey']['key'])
                 print('encrypted message: ')
                 print(en)
+                
                 # message = {"message":{"rec": datadict['pubkey']['id'], "mes": en}}
                 message = {"message":{"rec": datadict['pubkey']['id'], "mes": en, "mesid": get_random_string() }}
                 print(message)
@@ -175,6 +184,11 @@ class Client:
                 print('received a message from ',datadict['message']['senderName'],':')
                 print("\'",datadict['message']['mes'],"\'")
                 print('corresponding dict: ',datadict)
+
+                enmes = datadict['message']['mes']
+                mes = self.myEncrypt.decryptB64(enmes)
+                print('Unencrypted text:')
+                print(mes)
                 self.sock.send(bytes(json.dumps({"received":datadict}, indent = 4), encoding = 'utf-8'))
             
             elif 'online' in datadict:
