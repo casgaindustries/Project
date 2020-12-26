@@ -29,6 +29,7 @@ class Client:
     registered = False
     onlineColleagues = None
     sessions = []
+    # employeeSessions = []
 
     def sendOverSocket(self, dicttosend):
         json_object = json.dumps(dicttosend, indent = 4)   
@@ -69,6 +70,21 @@ class Client:
                 "message": enmes
             }}
             self.sendOverSocket(dicttosend)
+    
+    def messageViaOrg(self):
+        employeeSession = None
+        for eses in self.employeeSessions:
+            print('Employeesessions:')
+            print(eses)
+            if eses.id == self.typedsplit[1]:
+                employeeSession = eses
+        
+        print('Will try to message client via org')
+        dicttosend = {'messageViaOrg':{
+            'sessionID':self.typedsplit[1],
+            'mes':self.myEncrypt.encryptStringToB64(self.typedsplit[2],employeeSession.pubKey)
+        }}
+        self.sendOverSocket(dicttosend)
 
 
     def handleInput(self):
@@ -95,6 +111,8 @@ class Client:
                 self.getOrgConnection()
             if(self.typedsplit[0]== "MESSAGEORG" and self.registered):
                 self.messageOrg()
+            if(self.typedsplit[0]== "MESSAGEVIAORG" and self.registered):
+                self.messageViaOrg()
     
     def testloop(self):
          while True:
@@ -124,7 +142,7 @@ class Client:
         self.data = json.loads(f.read()) 
         print(self.data)
         self.myEncrypt = MyEncrypt()
-
+        self.employeeSessions = []
         # self.key = RSA.generate(1024, random_generator)
         
 
@@ -209,8 +227,19 @@ class Client:
                 self.setEmployeeContact(datadict['employeeContact'])
             
             elif 'messageThroughOrg' in datadict:
+                print(datadict)
                 print('Message for your Org '+datadict['messageThroughOrg']['orgName']+' from sessionID: '+datadict['messageThroughOrg']['sessionID'])
+                self.employeeSessions.append(EmployeeSession(datadict['messageThroughOrg']['sessionID'],datadict['messageThroughOrg']['senderKey']))
+                #! fake :
+                # self.employeeSessions.append(EmployeeSession('coolsesID',datadict['messageThroughOrg']['senderKey']))
+
                 print(self.myEncrypt.decryptB64(datadict['messageThroughOrg']['message']))
+
+            elif 'MessageFromOrg' in datadict:
+                print(datadict)
+                d = datadict['MessageFromOrg']
+                print('Received a message form org: '+d['orgName'])
+                print(self.myEncrypt.decryptB64(d['mes']))
 
             else:
                 print(datadict)

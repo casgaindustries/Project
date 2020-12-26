@@ -166,7 +166,7 @@ class Server:
             print(e.id + " has the following sessions:")
             print(e.mySessions)
             for s in e.mySessions:
-                if(s == sessionID):
+                if(s[0] == sessionID):
                     em = e
                     print(e.id + "Had the correct session id...")
         
@@ -194,7 +194,7 @@ class Server:
         print("Session ID: ", sessionID)
         onlineInOrg = self.getOnlineInOrg(org)
         connectionBuddy = random.choice(onlineInOrg)
-        connectionBuddy.mySessions.append(sessionID)
+        connectionBuddy.mySessions.append([sessionID,newconnection.id])
         ###! just to test
         print('----------THE TEST STATEMENT-------')
         for e in org.employees:
@@ -208,7 +208,6 @@ class Server:
                 break
 
         print(connectionBuddy)
-        #TODO return dict/json with key of the recipient employee and the session id
         returndict = {"employeeContact":{
             "key":connectionBuddyCon.key,
             "sessionID":sessionID,
@@ -229,13 +228,41 @@ class Server:
             "orgID":d['orgID'],
             "orgName": d['orgName'],
             "sessionID":d['sessionID'],
-            # "senderID": newconnection.id,
-            # "senderName": newconnection.name,
+            "senderID": newconnection.id,
+            "senderName": newconnection.name,
             "senderKey": newconnection.key,
             "message": d['message']
         }}
 
         con.send(dicttosend)
+    
+    def messageViaOrg(self, datadict, newconnection):
+        print('Messaging via org ')
+        
+        #awesome loop stacking:
+        sessiontuple = None
+        organisation = None
+
+        for org in self.organisations:
+            for employee in org.employees:
+                if employee.id == newconnection.id:
+                    for session in employee.mySessions:
+                        if session[0]==datadict['messageViaOrg']['sessionID']:
+                            print('FOUND session with client!')
+                            sessiontuple = session
+                            organisation = org
+        if sessiontuple is None:
+            print('Session not found!')
+            return
+        
+        for con in self.connections:
+            if con.id == sessiontuple[1]:
+                con.send({'MessageFromOrg':{
+                    'orgName':org.name,
+                    'sessionID':datadict['messageViaOrg']['sessionID'],
+                    'mes':datadict['messageViaOrg']['mes']
+                }})
+
 
     def myHandler(self,c,a):
         newconnection = None
@@ -270,6 +297,10 @@ class Server:
 
                 elif 'messageOrg' in datadict and newconnection is not None:
                     self.messageOrg(newconnection,datadict)
+
+                elif 'messageViaOrg' in datadict and newconnection is not None:
+                    print(datadict)
+                    self.messageViaOrg(datadict,newconnection)
                 
                 else:
                     print('this json was not recognized:')
