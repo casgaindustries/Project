@@ -14,12 +14,14 @@ import string
 
 import base64
 
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import AES
-from Crypto import Random
-from Crypto.Hash import SHA256
-from Crypto.Cipher import DES3
-random_generator = Random.new().read
+# from Crypto.PublicKey import RSA
+# from Crypto.Cipher import AES
+# from Crypto import Random
+# from Crypto.Hash import SHA256
+# from Crypto.Cipher import DES3
+# random_generator = Random.new().read
+
+from casEncrypt import *
 
 def get_random_string():
     # Random string with the combination of lower and upper case
@@ -436,6 +438,10 @@ class Client:
         
         print('-------------My personal dict:-------------')
         print(finalPersonDict)
+
+        self.myEncrypt = MyEncrypt()
+        print('GETTING PUBK!!!!!!!!!!')
+        self.myEncrypt.getPubKeyB64()
 
         myPersonJson = json.dumps(finalPersonDict).encode('utf-8')
         # myPersonJson = json.dumps(myPersonDict)

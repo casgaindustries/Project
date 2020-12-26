@@ -1,4 +1,3 @@
-# from cryptography.fernet import Fernet
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES
 from Crypto import Random
@@ -10,40 +9,50 @@ from Crypto.Cipher import PKCS1_OAEP
 import base64
 import json
 
-print('That worked?')
+class MyEncrypt:
 
-key = RSA.generate(1024, random_generator)
-public_key = key.publickey() 
+    def __init__(self):
+        self.key = RSA.generate(1024, random_generator)
+        self.pubkey = self.key.publickey()
 
-bobj = key.publickey().exportKey(format='PEM', passphrase=None, pkcs=1)
+    def getPubKeyB64(self):
+        b64pubk = self.pubkey.exportKey(format='PEM', passphrase=None, pkcs=1)
+        bytepubk = base64.b64encode(b64pubk)  
+        asciipubk = bytepubk.decode('ascii')
+        return asciipubk
+    
+    def getKeyObjFromB64(self,b64key):
+        decoded = base64.b64decode(b64key)  
+        pubkobj = RSA.importKey(decoded, passphrase=None)
+        return pubkobj
 
-d = {}
+    def encryptStringToB64(self, string, b64pubk):
+        byteText = string.encode('utf-8')
+        pubkObj = self.getKeyObjFromB64(b64pubk)
+        cipher = PKCS1_OAEP.new(key=pubkObj)
+        cipher_text = cipher.encrypt(byteText)
+        print('Cipher text: (bytes)')
+        print(cipher_text)
+        encoded = base64.b64encode(cipher_text)  
+        b64encrypted = encoded.decode('ascii') 
+        return b64encrypted
+    
+    def decryptB64(self,b64ciphertxt):
+        ciphertxtbytes = base64.b64decode(b64ciphertxt)
+        return self.decryptBytes(ciphertxtbytes).decode('utf-8')
 
-encoded = base64.b64encode(bobj)  # b'ZGF0YSB0byBiZSBlbmNvZGVk' (notice the "b")
-d['bytes'] = encoded.decode('ascii')            # 'ZGF0YSB0byBiZSBlbmNvZGVk'
-d['other data'] = "other data!!! ü"
-# print(d)
-djson = json.dumps(d).encode('utf-8')
+    def decryptBytes(self,myBytes):
+        decrypt = PKCS1_OAEP.new(key=self.key)
+        decrypted_message = decrypt.decrypt(myBytes)
+        return decrypted_message
 
-dloaded = json.loads(djson)
-print(dloaded)
-decoded = base64.b64decode(dloaded['bytes'])  # b'data to be encoded'
 
-print(decoded)
+def tester():
+    enc = MyEncrypt()
+    pubk64 = enc.getPubKeyB64()
+    encyptedB64 = enc.encryptStringToB64( 'CAN YOüuuuuü',pubk64)
+    decryptedBytes = enc.decryptB64(encyptedB64)
+    print(decryptedBytes)
+    print(type(decryptedBytes))
 
-pubk2 = RSA.importKey(decoded, passphrase=None)
-
-print(pubk2)
-
-txt = b'yeeet boyyy'
-
-cipher = PKCS1_OAEP.new(key=pubk2)
-#Encrypting the message with the PKCS1_OAEP object
-cipher_text = cipher.encrypt(txt)
-print(cipher_text)
-#Instantiating PKCS1_OAEP object with the private key for decryption
-decrypt = PKCS1_OAEP.new(key=key)
-#Decrypting the message with the PKCS1_OAEP object
-decrypted_message = decrypt.decrypt(cipher_text)
-print(decrypted_message)
-
+# tester()
