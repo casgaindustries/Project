@@ -55,8 +55,9 @@ class Bank:
             
             datadict = json.loads(data)
 
-            if 'pubkey' in datadict:
-                print('Received pubkey')
+            if 'userMessage' in datadict:
+                print('userMessage Detected')
+                self.handleUserMessage(datadict)
 
             else:
                 print(datadict)
@@ -67,6 +68,64 @@ class Bank:
         json_object = json.dumps(dicttosend, indent = 4)   
         self.sock.send(bytes(json_object, encoding = 'utf-8'))
     
+
+    def tryAdd(self,fromID, toID, amt):
+        fromacc = None
+        toacc = None
+        
+        for bacc in self.bankAccounts:
+            if bacc.id == fromID:
+                fromacc = bacc
+            elif bacc.id == toID:
+                toacc = bacc
+        
+        print('-------BEFORE--------')
+        print('fromacc:')
+        print(fromacc)
+        print('toacc')
+        print(toacc)
+
+        if(fromacc is None or toacc is None):
+            #TODO return error message
+            return
+        
+        if(fromacc.balance<amt or amt<0):
+            #TODO return error message
+            return
+        
+        fromacc.balance = fromacc.balance - amt
+        toacc.balance = toacc.balance + amt
+
+        print('-------AFTER--------')
+        print('fromacc:')
+        print(fromacc)
+        print('toacc')
+        print(toacc)
+        
+        
+
+    def handleUserMessage(self, datadict):
+        d = datadict['userMessage']
+        userID = d['userID']
+        enmes = d['message']
+        mes = self.myEncrypt.decryptB64(enmes)
+        # print(mes)
+        mesdict = json.loads(mes)
+        print(mesdict)
+
+        if(userID is not mesdict['from']):
+            #TODO SEND SOME SORT OF ERROR THAT THIS USER IS NOT AUTHORISED
+            print('user not authorised')
+            print(userID + ' vs '+mesdict['from'])
+            return
+
+        if mesdict['type']=='ADD':
+            self.tryAdd(userID,mesdict['to'],mesdict['amt'])
+        elif mesdict['type']=='SUB':
+            self.trySub(userID, mesdict['amt'])
+        
+        
+
     def handleInput(self):
         while True:
             # self.sock.send(bytes(input(""),'utf-8'))

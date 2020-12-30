@@ -57,6 +57,22 @@ class Server:
         print(self.connections)
         return newconnection
     
+    def retreiveBankKeyRequest(self,datadict,newconnection):
+        print('received a keyrequest for a bank?:')
+        print(datadict)
+        recipientstring = datadict['bankkeyrequest']
+        recipient = None
+        for con in self.bankconnections:
+            # if con.id is recipientstring or con.name is recipientstring:
+            # print(con.id)
+            # print(recipientstring)
+            if con.id == recipientstring or con.name == recipientstring:
+                #TODO build check for multiple people of same name
+                print('this recipient matches!')
+                recipient = con
+        if recipient is not None:
+            newconnection.send({"bankpubkey":{"id":recipient.id,"key":recipient.key}})
+
     def retreiveKeyRequest(self,datadict,newconnection):
         print('received a keyrequest?:')
         print(datadict)
@@ -238,6 +254,27 @@ class Server:
 
         con.send(dicttosend)
     
+    def sendToBank(self, datadict, newconnection):
+        bank = None
+        for b in self.bankconnections:
+            if b.id == datadict['sendToBank']['id'] or b.name == datadict['sendToBank']['id']:
+                bank = b
+        if(bank is None):
+            print('No bank found!')
+            return
+
+        print('The sending to bank:')
+        print(bank.name)
+
+        dicttosend = {
+            "userMessage":{
+                "userID":newconnection.id,
+                "message":datadict['sendToBank']['mes']
+            }
+        }
+
+        bank.send(dicttosend)
+
     def messageViaOrg(self, datadict, newconnection):
         print('Messaging via org ')
         
@@ -302,6 +339,9 @@ class Server:
 
                 elif 'keyrequest' in datadict and newconnection is not None:
                     self.retreiveKeyRequest(datadict,newconnection)
+ 
+                elif 'bankkeyrequest' in datadict and newconnection is not None:
+                    self.retreiveBankKeyRequest(datadict,newconnection)
 
                 elif 'message' in datadict and newconnection is not None:
                     self.sendMessage(datadict,newconnection)
@@ -321,6 +361,10 @@ class Server:
                 elif 'messageViaOrg' in datadict and newconnection is not None:
                     print(datadict)
                     self.messageViaOrg(datadict,newconnection)
+                
+                elif 'sendToBank' in datadict and newconnection is not None:
+                    print('Received sendToBank from one of the clients')
+                    self.sendToBank(datadict, newconnection)
                 
                 else:
                     print('this json was not recognized:')

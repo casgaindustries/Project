@@ -39,6 +39,11 @@ class Client:
         askdict = {"keyrequest":self.typedsplit[1]}
         json_object = json.dumps(askdict, indent = 4)   
         self.sock.send(bytes(json_object, encoding = 'utf-8'))
+    
+    def askBankKey(self):
+        askdict = {"bankkeyrequest":self.typedsplit[1]}
+        json_object = json.dumps(askdict, indent = 4)   
+        self.sock.send(bytes(json_object, encoding = 'utf-8'))
 
     def getCurrentlyOnline(self):
         askdict = {"getCurrentlyOnline":'dummy'}
@@ -86,6 +91,46 @@ class Client:
         }}
         self.sendOverSocket(dicttosend)
 
+    def sendToBank(self,d):
+        partToEncrypt = None
+        if(self.typedsplit[2] == "ADD"):
+            print("sending add command")
+            partToEncrypt = {
+                "type": "ADD",
+                "from": self.typedsplit[3],
+                "to": self.typedsplit[4],
+                "amt": int(self.typedsplit[5])
+                # "key": self.myEncrypt.getPubKeyB64()
+
+            }
+
+        elif self.typedsplit[2] == "SUB":
+            print("sending sub command")
+            partToEncrypt = {
+                "type": "SUB",
+                "from": self.typedsplit[3],
+                "amt": int(self.typedsplit[4])
+                # "key": self.myEncrypt.getPubKeyB64()
+            }
+
+        if(partToEncrypt is None):
+            print("The part to encrypt was none")
+            return
+
+        print('parttoencrypt:')
+        print(partToEncrypt)
+        print(type(partToEncrypt))
+        ptejson = json.dumps(partToEncrypt)
+        ptencrypted = self.myEncrypt.encryptStringToB64(ptejson,d['bankpubkey']['key'])
+        
+
+        dicttosend = {"sendToBank":{
+            "id":d['bankpubkey']['id'],
+            "mes":ptencrypted
+        }}
+        self.sendOverSocket(dicttosend)
+
+
 
     def handleInput(self):
         while True:
@@ -103,6 +148,9 @@ class Client:
             if(self.typedsplit[0] == "SEND" and self.registered):
                 print('Send message detected')
                 self.askKey()
+            if(self.typedsplit[0] == "BANKKEY" and self.registered):
+                print('Asking bank key')
+                self.askBankKey()
             if(self.typedsplit[0]== "GETONLINE" and self.registered):
                 print("asking who's online")
                 self.getCurrentlyOnline()
@@ -113,6 +161,8 @@ class Client:
                 self.messageOrg()
             if(self.typedsplit[0]== "MESSAGEVIAORG" and self.registered):
                 self.messageViaOrg()
+            if(self.typedsplit[0]=="SENDTOBANK" and self.registered):
+                self.askBankKey()
     
     def testloop(self):
          while True:
@@ -198,6 +248,13 @@ class Client:
                 # self.sock.send(bytes(f))
                 self.sock.send(bytes(json_object, encoding = 'utf-8'))
             
+            elif 'bankpubkey' in datadict:
+                print('Received pubkey for bank:')
+                print(datadict)
+                self.sendToBank(datadict)
+                
+
+            
             elif 'message' in datadict:
                 print('received a message from ',datadict['message']['senderName'],':')
                 # print("\'",datadict['message']['mes'],"\'")
@@ -240,6 +297,8 @@ class Client:
                 d = datadict['MessageFromOrg']
                 print('Received a message form org: '+d['orgName'])
                 print(self.myEncrypt.decryptB64(d['mes']))
+
+            
 
             else:
                 print(datadict)
