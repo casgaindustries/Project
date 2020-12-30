@@ -1,0 +1,39 @@
+{
+    "id":"dnzrtqownfgwmfdhxu",
+    "name": "The first bank",
+    "users":[
+        {
+            "id":"2",
+            "roles":[
+                "customer"
+            ],
+            "balance":1983
+        },
+        {
+            "id":"3",
+            "roles":[
+                "customer"
+            ],
+            "balance":8300
+        },
+        {
+            "id":"1",
+            "roles":[
+                "customer"
+            ],
+            "balance":230232
+        },
+        {
+            "id":"4",
+            "roles":[
+                "customer"
+            ],
+            "balance":21212
+        }
+    ],
+    "server":
+	{
+		"ip": "127.0.0.1",
+		"port": "10000"
+	}
+}
