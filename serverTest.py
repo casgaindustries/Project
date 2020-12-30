@@ -7,6 +7,7 @@ import json
 from connection_obj import *
 from organisation import *
 from session import *
+from bank import*
 import re
 import random
 import string
@@ -26,6 +27,7 @@ def get_random_string():
 class Server:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     connections = []
+    bankconnections = []
     organisations = []
     def __init__(self):
         self.sock.bind(('0.0.0.0',10000))
@@ -263,10 +265,21 @@ class Server:
                     'mes':datadict['messageViaOrg']['mes']
                 }})
 
+    def registerBank(self,datadict,c):
+        bankdata = datadict['bank']
+        newconnection = ConnectionObj(bankdata['id'],bankdata['name'],bankdata['key'],c)
+        self.bankconnections.append(newconnection)
+        newconnection.send({"registered":{}})
+        print(self.bankconnections)
+        return newconnection
+
+    def handleBankConnection(self,bankconnection, datadict):
+        print('using handlebankconneciton')
+        
 
     def myHandler(self,c,a):
         newconnection = None
-        
+        bankconnection = None
         while True:
             try:
                 data = c.recv(6000)
@@ -276,9 +289,16 @@ class Server:
                 except:
                     print(data)
                     datadict = {}
+                
+                if(bankconnection is not None):
+                    self.handleBankConnection(bankconnection,datadict)
 
-                if 'person' in datadict and newconnection is None:
+                elif 'person' in datadict and newconnection is None:
                     newconnection = self.registerPerson(datadict,c)
+
+                elif 'bank' in datadict and bankconnection is None:
+                    print('Creating new bank connection')
+                    bankconnection = self.registerBank(datadict,c)
 
                 elif 'keyrequest' in datadict and newconnection is not None:
                     self.retreiveKeyRequest(datadict,newconnection)
@@ -341,13 +361,20 @@ class Server:
             cThread = threading.Thread(target = self.myHandler, args = (c,a))
             cThread.daemon = True
             cThread.start()
-            #! self.connections.append(c), we want to add this later!
-            # print(self.connections)
             print(str(a[0])+ ':' + str(a[1]), "connected")
 
 
+
 if (len(sys.argv) > 1):
-    client = Client(sys.argv[1])
+    if(sys.argv[1] == "client"):
+        print('Constructing client')
+        client = Client(sys.argv[2])
+    elif(sys.argv[1] == "bank"):
+        print('Constructing bank')
+        bank = Bank(sys.argv[2])
+    
+    
+    
 else:
     server = Server()
     server.run()
