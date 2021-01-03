@@ -1,3 +1,4 @@
+# Class used by the bank client to keep track of bank accounts
 class BankAccount:
     def __init__(self,data):
         self.id = data['id']

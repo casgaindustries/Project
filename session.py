@@ -1,3 +1,5 @@
+
+#Session object used by the server to keep track of the sessions
 class Session:
     # id = None
     # orgName = None
@@ -11,12 +13,12 @@ class Session:
         self.key = dict['key']
 
     def __str__(self):
-        # print(self.id," ",self.name, " ", self.employees)
         return "Session id: %s, orgName:  %s, orgID %s, key %s" % (self.id, self.orgName, self.orgID, self.key[:12])
 
     def __repr__(self):
         return self.__str__()
 
+# Session obj used by employee client 
 class EmployeeSession:
     def __init__(self, sessionID, pubKey):
         print('initializing employeesession with ' + sessionID)

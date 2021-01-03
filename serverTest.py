@@ -22,8 +22,8 @@ def get_random_string():
     # Random string with the combination of lower and upper case
     letters = string.ascii_letters
     return ''.join(random.choice(letters) for i in range(10))
-    # print("Random string is:", result_str)
 
+#Server instance (only one needed)
 class Server:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     connections = []
@@ -34,10 +34,7 @@ class Server:
         self.sock.listen(1)
         self.createOrgsFromFiles(['organisation_1.json','organisation_2.json'])
 
-
-    def decrypt(self, cypertext, key):
-        print('decrypting...') 
-
+    #Instatiate organisation objects from given files (includes employees and roles)
     def createOrgsFromFiles(self, files):
         for filename in files:
             f = open (filename, encoding='utf-8') 
@@ -49,6 +46,7 @@ class Server:
             print(self.organisations)
             print(" ")
 
+    # Method called when a client wants to connect to the server
     def registerPerson(self,datadict,c):
         persondata = datadict['person']
         newconnection = ConnectionObj(persondata['id'],persondata['name'],persondata['key'],c)
@@ -57,6 +55,7 @@ class Server:
         print(self.connections)
         return newconnection
     
+    # Gets the client a banks public key
     def retreiveBankKeyRequest(self,datadict,newconnection):
         print('received a keyrequest for a bank?:')
         print(datadict)
@@ -73,6 +72,7 @@ class Server:
         if recipient is not None:
             newconnection.send({"bankpubkey":{"id":recipient.id,"key":recipient.key}})
 
+    # Gets client other client's pubkey
     def retreiveKeyRequest(self,datadict,newconnection):
         print('received a keyrequest?:')
         print(datadict)
@@ -89,6 +89,7 @@ class Server:
         if recipient is not None:
             newconnection.send({"pubkey":{"id":recipient.id,"key":recipient.key}})
     
+    # Sends message from one client to another, repeats until the recipient has received or the timeout has been reached
     def sendMessage(self,datadict,newconnection):
         #* We never decrypt the message here!
         messagedata = datadict['message']
@@ -127,6 +128,7 @@ class Server:
             iThread.deamon = True
             iThread.start()
     
+    # In case the recipient receives the message, this method is triggered and the sender will know the message was received
     def confirmReceived(self,datadict,connection):
         print('this dict was received:')
         print(datadict)
@@ -136,6 +138,7 @@ class Server:
         if sender is not None:
             sender.send({"received":stringtosend})
 
+    # Returns contact info of other employees that are online in an organisation
     def getCurrentlyOnlineMyOrg(self,newconnection):
         #First check in which org this person is located
         myOrg = None
@@ -164,6 +167,7 @@ class Server:
 
         newconnection.send(onlineDict)
 
+    # Helper method that returns org given its ID or name
     def getOrg(self,orgString):
         #Gets the employees currently online given a company ID or name
         theOrg = None
@@ -195,6 +199,7 @@ class Server:
         
         return con, em
 
+    # Helper method that matches employees of an org to currently online connections and returns them
     def getOnlineInOrg(self,org):
         online = []
         for em in org.employees:
@@ -204,7 +209,8 @@ class Server:
         print('These people are online in your company:')
         print(online)
         return(online)
-        
+    
+    # Creates a session (with ID) between an organisations' employee and a client from outside the org
     def createOrgSession(self,newconnection,datadict):
         print('Creating a new session between: '+datadict['communicateWithOrg']+" and "+ newconnection.name)
         org = self.getOrg(datadict['communicateWithOrg'])
@@ -234,6 +240,7 @@ class Server:
         }}
         newconnection.send(returndict)
 
+    # Message org given a sessionID between an employee and client
     def messageOrg(self,newconnection,datadict):
         d = datadict['messageOrg']
         org = self.getOrg(d['orgID'])
@@ -254,6 +261,7 @@ class Server:
 
         con.send(dicttosend)
     
+    # Forward encrypted message to a bank
     def sendToBank(self, datadict, newconnection):
         bank = None
         for b in self.bankconnections:
@@ -275,6 +283,8 @@ class Server:
 
         bank.send(dicttosend)
 
+    #Let's employee talk via their org to a client with a given sessionID, 
+    # strips away personal info of the employee
     def messageViaOrg(self, datadict, newconnection):
         print('Messaging via org ')
         
@@ -302,6 +312,7 @@ class Server:
                     'mes':datadict['messageViaOrg']['mes']
                 }})
 
+    # Registers a bank when it first connects
     def registerBank(self,datadict,c):
         bankdata = datadict['bank']
         newconnection = ConnectionObj(bankdata['id'],bankdata['name'],bankdata['key'],c)
@@ -310,10 +321,21 @@ class Server:
         print(self.bankconnections)
         return newconnection
 
+    # Method called when a bank sends a json to the server
     def handleBankConnection(self,bankconnection, datadict):
         print('using handlebankconneciton')
-        
+        if 'userError' in datadict:
+            connection  = None
+            for con in self.connections:
+                if(con.id == datadict['userError']['userID']):
+                    connection = con
+            if(connection is not None):
+                print("Found connection for error:"+connection.id)
+                connection.send(datadict)
 
+        
+    # Main method that receives data from clients
+    # Each client has their own thread running this method.
     def myHandler(self,c,a):
         newconnection = None
         bankconnection = None
@@ -330,6 +352,11 @@ class Server:
                 if(bankconnection is not None):
                     self.handleBankConnection(bankconnection,datadict)
 
+                #_____________________________________
+                #____These elif calls check which type of json was sent to the server
+                #____and calls the correct method to deal with that data
+                #_____________________________________
+                
                 elif 'person' in datadict and newconnection is None:
                     newconnection = self.registerPerson(datadict,c)
 
@@ -366,6 +393,8 @@ class Server:
                     print('Received sendToBank from one of the clients')
                     self.sendToBank(datadict, newconnection)
                 
+
+
                 else:
                     print('this json was not recognized:')
                     print(datadict)
@@ -381,23 +410,22 @@ class Server:
                 self.connections.remove(newconnection)
                 newconnection.c.close()
                 break
-            
+    
+    #Keeps resending json to receiver until it has been received
     def keepResending(self, dict, receiver):
-        # time.sleep(5)
-        #TODO set this to the correct limit for the sender
         limit = 5
         i = 0
         while(dict in receiver.messagesToReceive and i<limit):
             i = i+1
             print('sending dict again, because no response has come back')
             receiver.send(dict)
-            #TODO set this to the correct timeouttime set by the sender
             time.sleep(5)
         if(not i<limit):
             print('gave up sending the dict to receiver')
         else:
             print('receiver confirmed the message')
 
+    # Connects new clients via socket
     def run(self):
         while True:
             #connection is c, cliens' adres is a
@@ -408,6 +436,26 @@ class Server:
             print(str(a[0])+ ':' + str(a[1]), "connected")
 
 
+#_____________________________________
+#_____________________________________
+#_____________________________________
+#___ This next part is used to start the program given args
+#_____________________________________
+#___ Boot up server with no args: 
+#___ python serverTest.py 
+#_____________________________________
+#_____________________________________
+#___ Boot up client args:
+#___ python serverTest.py client config_1.json 
+#___ python serverTest.py client config_2.json 
+#___ python serverTest.py client config_3.json 
+#___ python serverTest.py client config_4.json 
+#_____________________________________
+#_____________________________________
+#___ Boot up bank args:
+#___ python serverTest.py bank bank_config_1.json 
+#_____________________________________
+#_____________________________________
 
 if (len(sys.argv) > 1):
     if(sys.argv[1] == "client"):

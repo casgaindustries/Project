@@ -1,0 +1,2 @@
+2021-01-03 17:14 -- Subtracted 4 from 1, balance after: 230228
+2021-01-03 17:15 -- Sent 3 from 1 to 4

@@ -1,16 +1,9 @@
 import json
 
+# Connection object, keeps track of socket, clientID and pubkey
 class ConnectionObj:
-    # id = None
-    # name = None
-    # key = None
-    # messagesToReceive = []
-
-    # #The actual connection object which python understands:
-    # c= None
 
     def __init__(self,id,name,key,c):
-        print('ait bro niewe connec')
         self.messagesToReceive = []
         self.id = id
         self.name = name

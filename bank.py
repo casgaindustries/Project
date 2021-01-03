@@ -1,3 +1,4 @@
+from datetime import datetime
 
 #Server File
 import time
@@ -17,6 +18,8 @@ import base64
 from casEncrypt import *
 from bank_account import *
 
+# The bank is a client which can receive and send messages
+# It keeps track of all its bank accounts, and can alter their balances
 class Bank:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -32,10 +35,9 @@ class Bank:
         self.id = self.data['id']
         self.name = self.data['name']
         self.bankAccounts = []
-        #*Init bank accounts in original json
         self.initBankAccounts(self.data['users'])
         
-        #* Register at central server
+        # Register at central server
         bdict = {"bank":{
             "id": self.data['id'],
             "name": self.data['name'],
@@ -63,12 +65,12 @@ class Bank:
                 print(datadict)
             print(' ')
             
-    
+    # Sends to server
     def sendOverSocket(self, dicttosend):
         json_object = json.dumps(dicttosend, indent = 4)   
         self.sock.send(bytes(json_object, encoding = 'utf-8'))
     
-
+    # Tries to send money from one bank account to the other, sends error if it's impossible
     def tryAdd(self,fromID, toID, amt):
         fromacc = None
         toacc = None
@@ -87,23 +89,72 @@ class Bank:
 
         if(fromacc is None or toacc is None):
             #TODO return error message
+
+            self.sendErrorToUser(fromID,"That account wasn't found")
             return
         
-        if(fromacc.balance<amt or amt<0):
+        if(fromacc.balance<amt):
             #TODO return error message
+            self.sendErrorToUser(fromID,"You don't have enough funds")
+            return
+        if(amt<0):
+            self.sendErrorToUser(fromID,"You can't transfer a negative amount")
             return
         
         fromacc.balance = fromacc.balance - amt
         toacc.balance = toacc.balance + amt
+
+        f = open("logfile.txt", "a")
+        f.write("{0} -- {1}\n".format(datetime.now().strftime("%Y-%m-%d %H:%M"), "Sent "+str(amt)+" from "+str(fromacc.id)+ " to "+str(toacc.id)))
+        f.close()
 
         print('-------AFTER--------')
         print('fromacc:')
         print(fromacc)
         print('toacc')
         print(toacc)
+
+    #Tries to sub from a given account, sends error if not right
+    def trySub(self,fromID, amt):
+        fromacc = None
         
+        for bacc in self.bankAccounts:
+            if bacc.id == fromID:
+                fromacc = bacc
+        
+        print('-------BEFORE--------')
+        print('fromacc:')
+        print(fromacc)
         
 
+        if(fromacc is None):
+            #TODO return error message
+
+            self.sendErrorToUser(fromID,"That account wasn't found")
+            return
+        
+        if(fromacc.balance<amt):
+            #TODO return error message
+            self.sendErrorToUser(fromID,"You don't have enough funds")
+            return
+        if(amt<0):
+            self.sendErrorToUser(fromID,"You can't sub a negative amount")
+            return
+        
+        befbal = fromacc.balance
+        fromacc.balance = fromacc.balance - amt
+
+        f = open("logfile.txt", "a")
+        f.write("{0} -- {1}\n".format(datetime.now().strftime("%Y-%m-%d %H:%M"), "Subtracted "+str(amt)+" from "+str(fromID)+ ", balance after: "+str(fromacc.balance)))
+        f.close()
+
+        print('-------AFTER--------')
+        print('fromacc:')
+        print(fromacc)
+
+        
+        
+    # Decrypts message from a user and handles it
     def handleUserMessage(self, datadict):
         d = datadict['userMessage']
         userID = d['userID']
@@ -114,9 +165,9 @@ class Bank:
         print(mesdict)
 
         if(userID is not mesdict['from']):
-            #TODO SEND SOME SORT OF ERROR THAT THIS USER IS NOT AUTHORISED
             print('user not authorised')
             print(userID + ' vs '+mesdict['from'])
+            self.sendErrorToUser(userID,"You are not authorised to take money from that account")
             return
 
         if mesdict['type']=='ADD':
@@ -124,7 +175,12 @@ class Bank:
         elif mesdict['type']=='SUB':
             self.trySub(userID, mesdict['amt'])
         
-        
+    def sendErrorToUser(self, userID, message):
+        dicttosend = {"userError":{
+            "userID": userID,
+            "mes":message
+        }}        
+        self.sendOverSocket(dicttosend)
 
     def handleInput(self):
         while True:
@@ -136,16 +192,17 @@ class Bank:
             temp2 = re.findall("\[(.*?)\]", reststring)
             temp = temp + temp2
             self.typedsplit = temp
-            print('input:  ')
-            for e in self.typedsplit:
-                print(e)
-            if(self.typedsplit[0] == "SEND"):
-                print('Send message detected')
-                self.sendOverSocket({'bank': "or not"})
-            if(self.typedsplit[0]== "GETONLINE"):
-                print("asking who's online")
-                self.sendOverSocket({"cool" : "story m8"})
+            # print('input:  ')
+            # for e in self.typedsplit:
+            #     print(e)
+            # if(self.typedsplit[0] == "SEND"):
+            #     print('Send message detected')
+            #     self.sendOverSocket({'bank': "or not"})
+            # if(self.typedsplit[0]== "GETONLINE"):
+            #     print("asking who's online")
+            #     self.sendOverSocket({"cool" : "story m8"})
     
+    # inits bank account from bank_config json
     def initBankAccounts(self, d):
         print("initializing bank accouts:")
         for u in d:
